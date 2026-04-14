@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   progressOuter: {
     height: 10,
     borderRadius: 8,
-    backgroundColor: '#EEF2F6',
+    backgroundColor: '#E2E2E2',
     overflow: 'hidden',
     marginTop: 6,
   },

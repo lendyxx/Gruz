@@ -57,7 +57,7 @@ export function HomeScreen({ navigation }: Props) {
           <PrimaryButton
             title="🧾  ИСТОРИЯ ЗАКАЗОВ"
             onPress={() => navigation.getParent()?.navigate('HistoryTab' as never)}
-            style={{ backgroundColor: '#1F2C3A' }}
+            style={{ backgroundColor: '#111111' }}
           />
         </View>
 

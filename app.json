@@ -4,7 +4,6 @@
     "slug": "gruzovichok",
     "scheme": "gruzovichok",
     "version": "1.0.0",
-    "sdkVersion": "51.0.0",
     "orientation": "portrait",
     "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "light"
