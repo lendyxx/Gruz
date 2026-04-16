@@ -32,5 +32,6 @@ export type Order = {
   team: TeamOption;
   cargo: CargoDetails;
   totalRub: number;
+  userId: string; // Добавлено для связи с пользователем
 };
 

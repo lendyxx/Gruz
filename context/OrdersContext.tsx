@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getJSON, setJSON } from '../storage/storage';
+import { collection, addDoc, updateDoc, doc, getDocs, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from './AuthContext';
 import type { CargoDetails, Order, OrderStatus, TeamOption, TeamOptionId } from '../types';
-
-const STORAGE_ORDERS = 'gruz:orders';
-const STORAGE_ACTIVE_ID = 'gruz:activeOrderId';
-const STORAGE_LAST_NUMBER = 'gruz:lastOrderNumber';
 
 export const TEAM_OPTIONS: TeamOption[] = [
   { id: 'standard', title: 'Стандарт', subtitle: '2 грузчика + Газель', pricePerHour: 2000 },
@@ -33,74 +31,41 @@ function calcPriceRub(team: TeamOption, cargo: CargoDetails): number {
   return base + extras;
 }
 
-function uuid() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 function byCreatedDesc(a: Order, b: Order) {
   return b.createdAt.localeCompare(a.createdAt);
 }
 
-function seedOrders(): Order[] {
-  const standard = TEAM_OPTIONS[0];
-  const premium = TEAM_OPTIONS[1];
-  return [
-    {
-      id: uuid(),
-      number: 101,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      status: 'delivered',
-      team: standard,
-      cargo: {
-        sizeText: '2x1.5x1 м',
-        weightKg: 120,
-        fromAddress: 'Москва, ул. Пушкина, 10',
-        toAddress: 'Москва, ул. Арбат, 5',
-        needsPacking: false,
-        needsFloors: true,
-      },
-      totalRub: 2400,
-    },
-    {
-      id: uuid(),
-      number: 102,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1).toISOString(),
-      status: 'enroute',
-      team: premium,
-      cargo: {
-        sizeText: '3x2x1.5 м',
-        weightKg: 250,
-        fromAddress: 'Москва, Ленинградский пр., 15',
-        toAddress: 'Москва, Пресненская наб., 2',
-        needsPacking: true,
-        needsFloors: false,
-      },
-      totalRub: 4000,
-    },
-  ];
-}
-
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<TeamOption | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const storedOrders = (await getJSON<Order[]>(STORAGE_ORDERS)) ?? null;
-      const storedActive = (await getJSON<string>(STORAGE_ACTIVE_ID)) ?? null;
-      const initialOrders = storedOrders && storedOrders.length ? storedOrders : seedOrders();
-      setOrders(initialOrders.sort(byCreatedDesc));
-      await setJSON(STORAGE_ORDERS, initialOrders);
-
-      const maybeActive =
-        storedActive && initialOrders.some((o) => o.id === storedActive) ? storedActive : null;
-      setActiveOrderId(maybeActive);
-      if (maybeActive) await setJSON(STORAGE_ACTIVE_ID, maybeActive);
+    if (!user) {
+      setOrders([]);
+      setActiveOrderId(null);
       setIsReady(true);
-    })();
-  }, []);
+      return;
+    }
+
+    // Подписка на заказы пользователя
+    const q = query(collection(db, 'orders'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const userOrders: Order[] = [];
+      querySnapshot.forEach((doc) => {
+        userOrders.push({ id: doc.id, ...doc.data() } as Order);
+      });
+      setOrders(userOrders);
+      // Найти активный заказ (последний с статусом не delivered/cancelled)
+      const active = userOrders.find(o => !['delivered', 'cancelled'].includes(o.status)) || null;
+      setActiveOrderId(active?.id || null);
+      setIsReady(true);
+    });
+
+    return unsubscribe;
+  }, [user]);
 
   const activeOrder = useMemo(() => {
     if (!activeOrderId) return null;
@@ -121,45 +86,37 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         setSelectedTeam(null);
       },
       async createOrder({ team, cargo }) {
-        const last = (await getJSON<number>(STORAGE_LAST_NUMBER)) ?? 100;
-        const nextNumber = last + 1;
-        const order: Order = {
-          id: uuid(),
+        if (!user) throw new Error('User not authenticated');
+        // Получить следующий номер
+        const lastOrder = orders[0]; // Отсортировано по desc
+        const nextNumber = lastOrder ? lastOrder.number + 1 : 101;
+        const orderData = {
           number: nextNumber,
           createdAt: new Date().toISOString(),
-          status: 'created',
+          status: 'created' as OrderStatus,
           team,
           cargo,
           totalRub: calcPriceRub(team, cargo),
+          userId: user.id,
         };
-        const nextOrders = [order, ...orders].sort(byCreatedDesc);
-        setOrders(nextOrders);
-        setActiveOrderId(order.id);
-        await setJSON(STORAGE_LAST_NUMBER, nextNumber);
-        await setJSON(STORAGE_ACTIVE_ID, order.id);
-        await setJSON(STORAGE_ORDERS, nextOrders);
-        return order;
+        const docRef = await addDoc(collection(db, 'orders'), orderData);
+        const newOrder: Order = { id: docRef.id, ...orderData };
+        // Orders обновятся через onSnapshot
+        setActiveOrderId(newOrder.id);
+        return newOrder;
       },
       async setActiveStatus(status) {
         if (!activeOrderId) return;
-        const nextOrders = orders.map<Order>((o) =>
-          o.id === activeOrderId ? { ...o, status } : o
-        );
-        setOrders(nextOrders);
-        await setJSON(STORAGE_ORDERS, nextOrders);
+        await updateDoc(doc(db, 'orders', activeOrderId), { status });
+        // Orders обновятся через onSnapshot
       },
       async cancelActive() {
         if (!activeOrderId) return;
-        const nextOrders = orders.map<Order>((o) =>
-          o.id === activeOrderId ? { ...o, status: 'cancelled' } : o
-        );
-        setOrders(nextOrders);
+        await updateDoc(doc(db, 'orders', activeOrderId), { status: 'cancelled' });
         setActiveOrderId(null);
-        await setJSON(STORAGE_ACTIVE_ID, null);
-        await setJSON(STORAGE_ORDERS, nextOrders);
       },
     };
-  }, [isReady, selectedTeam, orders, activeOrder, activeOrderId]);
+  }, [isReady, selectedTeam, orders, activeOrder, user]);
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>;
 }

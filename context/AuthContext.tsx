@@ -1,22 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getJSON, remove, setJSON } from '../storage/storage';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import type { User } from '../types';
-
-const STORAGE_USER = 'gruz:user';
-
-type AuthState = {
-  user: User | null;
-  isReady: boolean;
-  signIn: (args: { login: string; password: string }) => Promise<{ ok: true } | { ok: false; message: string }>;
-  signUp: (args: {
-    name: string;
-    login: string;
-    password: string;
-  }) => Promise<{ ok: true } | { ok: false; message: string }>;
-  signOut: () => Promise<void>;
-};
-
-type StoredAuth = { user: User; password: string };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -36,20 +22,29 @@ function isPhone(login: string) {
   return d.length >= 10;
 }
 
-function uuid() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const stored = await getJSON<StoredAuth>(STORAGE_USER);
-      setUser(stored?.user ?? null);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Получить дополнительные данные пользователя из Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUser({
+            id: firebaseUser.uid,
+            name: userData.name,
+            login: userData.login,
+          });
+        }
+      } else {
+        setUser(null);
+      }
       setIsReady(true);
-    })();
+    });
+    return unsubscribe;
   }, []);
 
   const value = useMemo<AuthState>(() => {
@@ -57,13 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isReady,
       async signIn({ login, password }) {
-        const stored = await getJSON<StoredAuth>(STORAGE_USER);
-        const norm = normalizeLogin(login);
-        if (!stored) return { ok: false, message: 'Пользователь не найден. Зарегистрируйтесь.' };
-        if (normalizeLogin(stored.user.login) !== norm) return { ok: false, message: 'Неверный логин.' };
-        if (stored.password !== password) return { ok: false, message: 'Неверный пароль.' };
-        setUser(stored.user);
-        return { ok: true };
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, login, password);
+          return { ok: true };
+        } catch (error: any) {
+          return { ok: false, message: error.message };
+        }
       },
       async signUp({ name, login, password }) {
         const trimmedName = name.trim();
@@ -72,14 +66,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isEmail(trimmedLogin) && !isPhone(trimmedLogin))
           return { ok: false, message: 'Введите корректный телефон или email.' };
         if (password.length < 4) return { ok: false, message: 'Пароль должен быть минимум 4 символа.' };
-        const newUser: User = { id: uuid(), name: trimmedName, login: normalizeLogin(trimmedLogin) };
-        await setJSON<StoredAuth>(STORAGE_USER, { user: newUser, password });
-        setUser(newUser);
-        return { ok: true };
+        try {
+          const userCredential = await createUserWithEmailAndPassword(auth, trimmedLogin, password);
+          // Сохранить дополнительные данные в Firestore
+          await setDoc(doc(db, 'users', userCredential.user.uid), {
+            name: trimmedName,
+            login: normalizeLogin(trimmedLogin),
+          });
+          return { ok: true };
+        } catch (error: any) {
+          return { ok: false, message: error.message };
+        }
       },
       async signOut() {
-        setUser(null);
-        await remove(STORAGE_USER);
+        try {
+          await firebaseSignOut(auth);
+        } catch (error) {
+          console.error('Sign out error:', error);
+        }
       },
     };
   }, [user, isReady]);
