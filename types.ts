@@ -15,6 +15,14 @@ export type User = {
   login: string; // phone or email
 };
 
+export type AuthState = {
+  user: User | null;
+  isReady: boolean;
+  signIn: (args: { login: string; password: string }) => Promise<{ ok: boolean; message?: string }>;
+  signUp: (args: { name: string; login: string; password: string }) => Promise<{ ok: boolean; message?: string }>;
+  signOut: () => Promise<void>;
+};
+
 export type CargoDetails = {
   sizeText: string; // e.g. "2x1.5x1 м"
   weightKg?: number;

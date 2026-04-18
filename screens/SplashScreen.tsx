@@ -1,18 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Logo } from '../components/Logo';
 import { Colors } from '../theme/colors';
 
 export function SplashScreen() {
-  const [show, setShow] = useState(true);
-
-  useEffect(() => {
-    const t = setTimeout(() => setShow(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (!show) return <View style={styles.screen} />;
-
   return (
     <View style={styles.screen}>
       <Logo />

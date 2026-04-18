@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import type { User } from '../types';
+import type { User, AuthState } from '../types';
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -26,23 +26,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isReady, setIsReady] = useState(false);
 
+  async function createFallbackUserDoc(firebaseUser: FirebaseUser) {
+    const fallbackLogin = firebaseUser.email?.toLowerCase() ?? firebaseUser.phoneNumber ?? firebaseUser.uid;
+    const fallbackName = firebaseUser.displayName ?? (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Пользователь');
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const userData = {
+      name: fallbackName,
+      login: normalizeLogin(fallbackLogin),
+    };
+    await setDoc(userDocRef, userData, { merge: true });
+    return userData;
+  }
+
   useEffect(() => {
+    console.log('AuthProvider useEffect: starting onAuthStateChanged');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('onAuthStateChanged: firebaseUser=', firebaseUser);
       if (firebaseUser) {
-        // Получить дополнительные данные пользователя из Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDocPromise = getDoc(userDocRef);
+          const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+          const userDoc = await Promise.race([userDocPromise, timeoutPromise]);
+          let userData;
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+            console.log('User set from Firestore:', userData);
+          } else {
+            console.log('User doc not exists; creating fallback doc');
+            userData = await createFallbackUserDoc(firebaseUser);
+            console.log('Fallback user doc created:', userData);
+          }
           setUser({
             id: firebaseUser.uid,
             name: userData.name,
             login: userData.login,
           });
+        } catch (error) {
+          console.error('Error getting or creating user doc:', error);
+          setUser(null);
         }
       } else {
         setUser(null);
+        console.log('No firebaseUser');
       }
       setIsReady(true);
+      console.log('Auth isReady=true');
     });
     return unsubscribe;
   }, []);

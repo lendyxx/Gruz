@@ -71,8 +71,14 @@ export function CargoDetailsScreen({ navigation }: Props) {
         },
       });
       clearSelectedTeam();
-      Alert.alert('Готово', `Заказ №${order.number} создан`);
-      navigation.popToTop();
+      Alert.alert('Готово', `Заказ №${order.number} создан`, [
+        {
+          text: 'OK',
+          onPress: () => navigation.getParent()?.navigate('HistoryTab'),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось создать заказ. Попробуйте снова.');
     } finally {
       setLoading(false);
     }

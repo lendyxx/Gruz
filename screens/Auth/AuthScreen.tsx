@@ -150,7 +150,7 @@ export function AuthScreen() {
           {!!serverCommonError && <Text style={styles.commonError}>{serverCommonError}</Text>}
           <PrimaryButton title="Продолжить" onPress={onContinue} loading={loading} />
           <Text style={styles.hint}>
-            Данные сохраняются локально (заглушка). Можно тестировать без API.
+            © 2026 Грузовичок. Все права защищены.
           </Text>
         </View>
       </ScrollView>

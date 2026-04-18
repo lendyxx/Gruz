@@ -80,7 +80,7 @@ export function HomeScreen({ navigation }: Props) {
 
         <Text
           style={styles.debug}
-          onPress={() => Alert.alert('Подсказка', 'Статусы/цены — локальные заглушки.')}
+          onPress={() => Alert.alert('Подсказка', 'Вы можете заказать перевозку/Посмотреть историю заказов.')}
         >
           О приложении
         </Text>

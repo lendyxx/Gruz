@@ -43,6 +43,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('OrdersProvider useEffect: user=', user);
     if (!user) {
       setOrders([]);
       setActiveOrderId(null);
@@ -53,6 +54,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     // Подписка на заказы пользователя
     const q = query(collection(db, 'orders'), where('userId', '==', user.id), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      console.log('Orders onSnapshot: docs count=', querySnapshot.size);
       const userOrders: Order[] = [];
       querySnapshot.forEach((doc) => {
         userOrders.push({ id: doc.id, ...doc.data() } as Order);
@@ -61,6 +63,10 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       // Найти активный заказ (последний с статусом не delivered/cancelled)
       const active = userOrders.find(o => !['delivered', 'cancelled'].includes(o.status)) || null;
       setActiveOrderId(active?.id || null);
+      setIsReady(true);
+      console.log('Orders isReady=true');
+    }, (error) => {
+      console.error('Orders snapshot error:', error);
       setIsReady(true);
     });
 
