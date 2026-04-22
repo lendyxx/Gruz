@@ -25,10 +25,31 @@ type OrdersState = {
 const OrdersContext = createContext<OrdersState | null>(null);
 
 function calcPriceRub(team: TeamOption, cargo: CargoDetails): number {
-  // Заглушка: 1 час + доп. услуги
-  const base = team.pricePerHour;
-  const extras = (cargo.needsPacking ? 500 : 0) + (cargo.needsFloors ? 400 : 0);
-  return base + extras;
+  let total = team.pricePerHour;
+
+  // Доп. услуги
+  if (cargo.needsPacking) total += 500;
+  if (cargo.needsFloors) total += 400;
+
+  // Размер груза (коэффициент)
+  const volume = (cargo.widthCm ?? 0) * (cargo.heightCm ?? 0) * (cargo.lengthCm ?? 0);
+  if (volume > 2000000) total += 1000; // Очень большой
+  else if (volume > 1000000) total += 500; // Большой
+
+  // Вес
+  if ((cargo.weightKg ?? 0) > 100) total += 300;
+
+  // Этажи без лифта
+  if (cargo.needsFloors && !cargo.hasElevator) {
+    const floors = Math.max(0, (cargo.floorTo ?? 1) - (cargo.floorFrom ?? 1));
+    if (floors > 3) total += floors * 100;
+  }
+
+  // Срочность (если сегодня)
+  const today = new Date().toISOString().split('T')[0];
+  if (cargo.deliveryDate === today) total += 1000;
+
+  return total;
 }
 
 function byCreatedDesc(a: Order, b: Order) {
@@ -93,23 +114,36 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       },
       async createOrder({ team, cargo }) {
         if (!user) throw new Error('User not authenticated');
-        // Получить следующий номер
-        const lastOrder = orders[0]; // Отсортировано по desc
-        const nextNumber = lastOrder ? lastOrder.number + 1 : 101;
-        const orderData = {
-          number: nextNumber,
-          createdAt: new Date().toISOString(),
-          status: 'created' as OrderStatus,
-          team,
-          cargo,
-          totalRub: calcPriceRub(team, cargo),
-          userId: user.id,
-        };
-        const docRef = await addDoc(collection(db, 'orders'), orderData);
-        const newOrder: Order = { id: docRef.id, ...orderData };
-        // Orders обновятся через onSnapshot
-        setActiveOrderId(newOrder.id);
-        return newOrder;
+        try {
+          // Получить следующий номер
+          const lastOrder = orders[0]; // Отсортировано по desc
+          const nextNumber = lastOrder ? lastOrder.number + 1 : 101;
+          
+          // Удалить undefined значения из cargo
+          const cleanCargo = Object.fromEntries(
+            Object.entries(cargo).filter(([_, v]) => v !== undefined)
+          );
+          
+          const orderData = {
+            number: nextNumber,
+            createdAt: new Date().toISOString(),
+            status: 'created' as OrderStatus,
+            team,
+            cargo: cleanCargo,
+            totalRub: calcPriceRub(team, cargo),
+            userId: user.id,
+          };
+          console.log('Creating order:', orderData);
+          const docRef = await addDoc(collection(db, 'orders'), orderData);
+          console.log('Order created with ID:', docRef.id);
+          const newOrder: Order = { id: docRef.id, ...orderData };
+          // Orders обновятся через onSnapshot
+          setActiveOrderId(newOrder.id);
+          return newOrder;
+        } catch (error: any) {
+          console.error('Error in createOrder:', error.message);
+          throw error;
+        }
       },
       async setActiveStatus(status) {
         if (!activeOrderId) return;

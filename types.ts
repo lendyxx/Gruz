@@ -9,10 +9,13 @@ export type TeamOption = {
 
 export type OrderStatus = 'created' | 'pickup' | 'enroute' | 'delivered' | 'cancelled';
 
+export type UserRole = 'user' | 'admin';
+
 export type User = {
   id: string;
   name: string;
   login: string; // phone or email
+  role: UserRole;
 };
 
 export type AuthState = {
@@ -24,12 +27,25 @@ export type AuthState = {
 };
 
 export type CargoDetails = {
-  sizeText: string; // e.g. "2x1.5x1 м"
+  // Габариты
+  widthCm?: number;
+  heightCm?: number;
+  lengthCm?: number;
   weightKg?: number;
+  // Адреса
   fromAddress: string;
   toAddress: string;
+  // Дата и время доставки
+  deliveryDate: string; // ISO date: YYYY-MM-DD
+  deliveryTime?: string; // HH:MM format
+  // Услуги
   needsPacking: boolean;
   needsFloors: boolean;
+  floorFrom?: number;
+  floorTo?: number;
+  hasElevator: boolean;
+  // Примечания
+  notes: string;
 };
 
 export type Order = {

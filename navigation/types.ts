@@ -1,3 +1,5 @@
+import type { CargoDetails } from '../types';
+
 export type RootStackParamList = {
   Splash: undefined;
   Auth: undefined;
@@ -11,12 +13,14 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   HomeTab: undefined;
   HistoryTab: undefined;
+  AdminTab?: undefined;
 };
 
 export type HomeStackParamList = {
   Home: undefined;
   SelectTeam: undefined;
   CargoDetails: undefined;
+  PriceCalculation: { cargo: CargoDetails };
 };
 
 export type HistoryStackParamList = {

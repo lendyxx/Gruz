@@ -4,6 +4,7 @@ import { Colors } from '../../theme/colors';
 import { HomeScreen } from '../../screens/Home/HomeScreen';
 import { SelectTeamScreen } from '../../screens/SelectTeam/SelectTeamScreen';
 import { CargoDetailsScreen } from '../../screens/CargoDetails/CargoDetailsScreen';
+import { PriceCalculationScreen } from '../../screens/CargoDetails/PriceCalculationScreen';
 import type { HomeStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -29,6 +30,11 @@ export function HomeStackNavigator() {
         name="CargoDetails"
         component={CargoDetailsScreen}
         options={{ title: 'Параметры груза' }}
+      />
+      <Stack.Screen
+        name="PriceCalculation"
+        component={PriceCalculationScreen}
+        options={{ title: 'Расчёт стоимости' }}
       />
     </Stack.Navigator>
   );

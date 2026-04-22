@@ -29,10 +29,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function createFallbackUserDoc(firebaseUser: FirebaseUser) {
     const fallbackLogin = firebaseUser.email?.toLowerCase() ?? firebaseUser.phoneNumber ?? firebaseUser.uid;
     const fallbackName = firebaseUser.displayName ?? (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Пользователь');
+    const isAdminEmail = fallbackLogin === 'n.gurov123@gmail.com';
     const userDocRef = doc(db, 'users', firebaseUser.uid);
     const userData = {
       name: fallbackName,
       login: normalizeLogin(fallbackLogin),
+      role: isAdminEmail ? 'admin' : 'user',
     };
     await setDoc(userDocRef, userData, { merge: true });
     return userData;
@@ -51,6 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           let userData;
           if (userDoc.exists()) {
             userData = userDoc.data();
+            // Если нет роли, добавляем её
+            if (!userData.role) {
+              const isAdminEmail = (userData.login === 'n.gurov123@gmail.com' || firebaseUser.email === 'n.gurov123@gmail.com');
+              const newRole = isAdminEmail ? 'admin' : 'user';
+              await setDoc(userDocRef, { role: newRole }, { merge: true });
+              userData.role = newRole;
+              console.log('Role added to existing user:', newRole);
+            }
             console.log('User set from Firestore:', userData);
           } else {
             console.log('User doc not exists; creating fallback doc');
@@ -61,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: firebaseUser.uid,
             name: userData.name,
             login: userData.login,
+            role: userData.role ?? 'user',
           });
         } catch (error) {
           console.error('Error getting or creating user doc:', error);
@@ -101,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await setDoc(doc(db, 'users', userCredential.user.uid), {
             name: trimmedName,
             login: normalizeLogin(trimmedLogin),
+            role: 'user',
           });
           return { ok: true };
         } catch (error: any) {
