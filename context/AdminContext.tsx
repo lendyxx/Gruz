@@ -10,6 +10,7 @@ type AdminState = {
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
   updateUserName: (userId: string, newName: string) => Promise<void>;
   getUserOrders: (userId: string) => Promise<Order[]>;
+  getAllOrders: () => Promise<Order[]>;
   setUserAsAdmin: (userId: string) => Promise<void>;
   removeUserAdmin: (userId: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -50,6 +51,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (user?.role !== 'admin') throw new Error('Only admins can view user orders');
         const q = query(collection(db, 'orders'), where('userId', '==', userId));
         const snap = await getDocs(q);
+        const orders: Order[] = [];
+        snap.forEach(doc => {
+          orders.push({ id: doc.id, ...doc.data() } as Order);
+        });
+        return orders;
+      },
+      async getAllOrders() {
+        if (user?.role !== 'admin') throw new Error('Only admins can view all orders');
+        const snap = await getDocs(collection(db, 'orders'));
         const orders: Order[] = [];
         snap.forEach(doc => {
           orders.push({ id: doc.id, ...doc.data() } as Order);
