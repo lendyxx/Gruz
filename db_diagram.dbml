@@ -1,0 +1,58 @@
+// Firestore Database Schema for Gruzovichok App
+// https://dbdiagram.io
+
+Table users {
+  id string [pk, note: "Firebase UID"]
+  name string [not null]
+  login string [not null, unique, note: "phone or email"]
+  role string [not null, note: "user | admin | driver"]
+  created_at string
+}
+
+Table user_roles_enum {
+  role string [pk]
+  description string
+  permissions string
+}
+
+Ref: user_roles_enum.role - users.role
+
+Table teams {
+  id string [pk, note: "standard | premium | office"]
+  title string [not null]
+  subtitle string
+  price_per_hour number [not null]
+}
+
+Table orders {
+  id string [pk, note: "Document ID"]
+  number integer [not null, unique]
+  created_at string [not null]
+  status string [not null, note: "created | pickup | enroute | delivered | cancelled"]
+  team_id string [not null, ref: > teams.id]
+  total_rub number [not null]
+  user_id string [not null, ref: > users.id, note: "👤 Кто создал заказ"]
+  assigned_driver_id string [ref: > users.id, note: "🚗 Кто принял заказ"]
+  width_cm integer
+  height_cm integer
+  length_cm integer
+  weight_kg number
+  from_address string [not null]
+  to_address string [not null]
+  delivery_date string [not null, note: "YYYY-MM-DD"]
+  delivery_time string [note: "HH:MM"]
+  needs_packing boolean
+  needs_floors boolean
+  floor_from integer
+  floor_to integer
+  has_elevator boolean
+  notes string
+}
+
+Table order_status_enum {
+  status string [pk]
+  description string
+  display_emoji string
+}
+
+Ref: order_status_enum.status - orders.status
