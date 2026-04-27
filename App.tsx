@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
 import { OrdersProvider } from './context/OrdersContext';
 import { AdminProvider } from './context/AdminContext';
+import { DriverProvider } from './context/DriverContext';
 import { RootNavigator } from './navigation/RootNavigator';
 
 export default function App() {
@@ -11,12 +12,15 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <AdminProvider>
-          <OrdersProvider>
-            <RootNavigator />
-          </OrdersProvider>
+          <DriverProvider>
+            <OrdersProvider>
+              <RootNavigator />
+            </OrdersProvider>
+          </DriverProvider>
         </AdminProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
 }
+
 

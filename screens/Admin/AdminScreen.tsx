@@ -11,7 +11,7 @@ import type { User, Order } from '../../types';
 type Tab = 'users' | 'orders';
 
 export function AdminScreen() {
-  const { isAdmin, setUserAsAdmin, removeUserAdmin, deleteOrder, updateOrder, getAllOrders } = useAdmin();
+  const { isAdmin, setUserAsAdmin, removeUserAdmin, setUserAsDriver, removeUserDriver, deleteOrder, updateOrder, getAllOrders } = useAdmin();
   const [tab, setTab] = useState<Tab>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -70,6 +70,21 @@ export function AdminScreen() {
       } else {
         await setUserAsAdmin(userId);
         Alert.alert('Успешно', 'Пользователь назначен администратором');
+      }
+      loadUsers();
+    } catch (error: any) {
+      Alert.alert('Ошибка', error.message);
+    }
+  }
+
+  async function onToggleDriver(userId: string, currentRole: string) {
+    try {
+      if (currentRole === 'driver') {
+        await removeUserDriver(userId);
+        Alert.alert('Успешно', 'Права водителя отозваны');
+      } else {
+        await setUserAsDriver(userId);
+        Alert.alert('Успешно', 'Пользователь назначен водителем');
       }
       loadUsers();
     } catch (error: any) {
@@ -155,23 +170,44 @@ export function AdminScreen() {
                   <View style={styles.userInfo}>
                     <Text style={styles.userName}>{user.name}</Text>
                     <Text style={styles.userLogin}>{user.login}</Text>
-                    <View style={styles.roleBadge}>
-                      <Text style={[styles.roleText, user.role === 'admin' && styles.adminRole]}>
-                        {user.role === 'admin' ? '👑 Администратор' : 'Пользователь'}
-                      </Text>
+                    <View style={styles.roleBadges}>
+                      {user.role === 'admin' && (
+                        <Text style={[styles.roleText, styles.adminRole]}>👑 Администратор</Text>
+                      )}
+                      {user.role === 'driver' && (
+                        <Text style={[styles.roleText, styles.driverRole]}>🚗 Водитель</Text>
+                      )}
+                      {user.role === 'user' && (
+                        <Text style={[styles.roleText, styles.userRole]}>👤 Пользователь</Text>
+                      )}
                     </View>
                   </View>
-                  <Pressable
-                    onPress={() => onToggleAdmin(user.id, user.role)}
-                    style={[
-                      styles.actionButton,
-                      user.role === 'admin' && styles.removeAdminButton,
-                    ]}
-                  >
-                    <Text style={styles.actionButtonText}>
-                      {user.role === 'admin' ? 'Отозвать' : 'Сделать админ'}
-                    </Text>
-                  </Pressable>
+                  <View style={styles.actionButtons}>
+                    <Pressable
+                      onPress={() => onToggleDriver(user.id, user.role)}
+                      style={[
+                        styles.actionButton,
+                        styles.driverButton,
+                        user.role === 'driver' && styles.removeDriverButton,
+                      ]}
+                    >
+                      <Text style={styles.actionButtonText}>
+                        {user.role === 'driver' ? 'Отозвать' : 'Водитель'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => onToggleAdmin(user.id, user.role)}
+                      style={[
+                        styles.actionButton,
+                        styles.adminButton,
+                        user.role === 'admin' && styles.removeAdminButton,
+                      ]}
+                    >
+                      <Text style={styles.actionButtonText}>
+                        {user.role === 'admin' ? 'Отозвать' : 'Админ'}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))
             )}
@@ -418,11 +454,12 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 4,
   },
-  roleBadge: {
+  roleBadges: {
     marginTop: 8,
+    gap: 6,
   },
   roleText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: Colors.muted,
     backgroundColor: Colors.bg,
@@ -432,22 +469,44 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   adminRole: {
-    color: Colors.accent,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    color: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  driverRole: {
+    color: '#F59E0B',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  userRole: {
+    color: Colors.text,
+    backgroundColor: Colors.bg,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   actionButton: {
-    backgroundColor: Colors.accent,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 6,
+    minWidth: 60,
+  },
+  driverButton: {
+    backgroundColor: '#FEF3C7',
+  },
+  adminButton: {
+    backgroundColor: '#EDE9FE',
+  },
+  removeDriverButton: {
+    backgroundColor: '#FECACA',
   },
   removeAdminButton: {
-    backgroundColor: Colors.danger,
+    backgroundColor: '#FECACA',
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.text,
+    textAlign: 'center',
   },
   orderCard: {
     backgroundColor: Colors.card,

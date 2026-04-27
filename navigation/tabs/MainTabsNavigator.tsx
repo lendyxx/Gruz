@@ -5,7 +5,9 @@ import { Colors } from '../../theme/colors';
 import { HomeStackNavigator } from '../stacks/HomeStackNavigator';
 import { HistoryStackNavigator } from '../stacks/HistoryStackNavigator';
 import { AdminStackNavigator } from '../stacks/AdminStackNavigator';
+import { DriverStackNavigator } from '../stacks/DriverStackNavigator';
 import { useAdmin } from '../../context/AdminContext';
+import { useDriver } from '../../context/DriverContext';
 import type { MainTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -20,6 +22,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 
 export function MainTabsNavigator() {
   const { isAdmin } = useAdmin();
+  const { isDriver } = useDriver();
 
   return (
     <Tab.Navigator
@@ -52,6 +55,17 @@ export function MainTabsNavigator() {
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="История" />,
         }}
       />
+      {isDriver && (
+        <Tab.Screen
+          name="DriverTab"
+          component={DriverStackNavigator}
+          options={{
+            title: 'Заказы',
+            tabBarLabel: () => null,
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} label="Заказы 🚗" />,
+          }}
+        />
+      )}
       {isAdmin && (
         <Tab.Screen
           name="AdminTab"

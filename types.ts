@@ -9,7 +9,7 @@ export type TeamOption = {
 
 export type OrderStatus = 'created' | 'pickup' | 'enroute' | 'delivered' | 'cancelled';
 
-export type UserRole = 'user' | 'admin';
+export type UserRole = 'user' | 'admin' | 'driver';
 
 export type User = {
   id: string;
@@ -57,5 +57,6 @@ export type Order = {
   cargo: CargoDetails;
   totalRub: number;
   userId: string; // Добавлено для связи с пользователем
+  assignedDriverId?: string; // ID назначенного водителя
 };
 

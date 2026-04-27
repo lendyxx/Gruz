@@ -6,6 +6,11 @@ service cloud.firestore {
       return userDoc.data.role == 'admin';
     }
 
+    function isDriver() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data.role == 'driver';
+    }
+
     // Users can read and write their own user document
     match /users/{userId} {
       allow read: if request.auth != null;
@@ -20,6 +25,9 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
       // Admin can read/write/delete any order
       allow read, write, delete: if request.auth != null && isAdmin();
+      // Driver can read all orders and update their assigned orders
+      allow read: if request.auth != null && isDriver();
+      allow update: if request.auth != null && isDriver() && resource.data.assignedDriverId == request.auth.uid;
     }
   }
 }

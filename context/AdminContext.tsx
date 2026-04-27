@@ -13,6 +13,8 @@ type AdminState = {
   getAllOrders: () => Promise<Order[]>;
   setUserAsAdmin: (userId: string) => Promise<void>;
   removeUserAdmin: (userId: string) => Promise<void>;
+  setUserAsDriver: (userId: string) => Promise<void>;
+  removeUserDriver: (userId: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
 };
 
@@ -76,6 +78,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         if (userId === user.id) throw new Error('Cannot remove yourself as admin');
         await updateDoc(doc(db, 'users', userId), { role: 'user' });
         console.log('User admin role removed:', userId);
+      },
+      async setUserAsDriver(userId) {
+        if (user?.role !== 'admin') throw new Error('Only admins can manage drivers');
+        await updateDoc(doc(db, 'users', userId), { role: 'driver' });
+        console.log('User set as driver:', userId);
+      },
+      async removeUserDriver(userId) {
+        if (user?.role !== 'admin') throw new Error('Only admins can manage drivers');
+        await updateDoc(doc(db, 'users', userId), { role: 'user' });
+        console.log('User driver role removed:', userId);
       },
       async deleteUser(userId) {
         if (user?.role !== 'admin') throw new Error('Only admins can delete users');
